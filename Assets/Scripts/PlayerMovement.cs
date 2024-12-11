@@ -34,6 +34,7 @@ void Update()
     {
         currentPath = path;
         currentTargetIndex = 0;
+        CheckAndMoveAlongPath();
     }
     public Vector2 currentTargetPosition
     {
@@ -47,7 +48,7 @@ void Update()
         }
     }
 
-    void CheckAndMoveAlongPath()
+    public void CheckAndMoveAlongPath()
     {
         if (currentTargetIndex >= currentPath.Count) return;
 
@@ -107,7 +108,16 @@ void Update()
 
         return closestNode;
     }
+    void MoveAlongPath()
+    {    
+    Vector2 targetPosition = currentPath[currentTargetIndex];
+    transform.position = Vector2.MoveTowards(transform.position, targetPosition, speed * Time.deltaTime);
 
+    if (Vector2.Distance(transform.position, targetPosition) < 0.1f)
+        {
+        currentTargetIndex++;
+        }
+    }
 
 
 

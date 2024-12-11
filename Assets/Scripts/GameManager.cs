@@ -22,6 +22,7 @@ public class GameManager : MonoBehaviour
         List<Vector2> path = currentAlgorithm.CalculatePath(startNode, targetNode, allNodes);
         player.SetPath(path);
     }
+    
 
     public PathNode FindClosestNodeToPlayer()
     {
