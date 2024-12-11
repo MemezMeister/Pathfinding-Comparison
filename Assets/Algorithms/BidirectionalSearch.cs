@@ -1,41 +1,33 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-[CreateAssetMenu(menuName = "Pathfinding/Bidirectional")]
+[CreateAssetMenu(menuName = "Pathfinding/BidirectionalFrontToFront")]
 public class BidirectionalAlgorithm : PathfindingAlgorithm
 {
     public override List<Vector2> CalculatePath(PathNode startNode, PathNode targetNode, List<PathNode> allNodes)
     {
-        // Two open sets for forward and backward search
-        Queue<PathNode> openSetForward = new Queue<PathNode>();
-        Queue<PathNode> openSetBackward = new Queue<PathNode>();
+        HashSet<PathNode> openSetForward = new HashSet<PathNode> { startNode };
+        HashSet<PathNode> openSetBackward = new HashSet<PathNode> { targetNode };
 
-        // Parent tracking
         Dictionary<PathNode, PathNode> cameFromForward = new Dictionary<PathNode, PathNode>();
         Dictionary<PathNode, PathNode> cameFromBackward = new Dictionary<PathNode, PathNode>();
 
-        // Visited nodes for intersection check
-        HashSet<PathNode> visitedForward = new HashSet<PathNode>();
-        HashSet<PathNode> visitedBackward = new HashSet<PathNode>();
+        Dictionary<PathNode, float> costForward = new Dictionary<PathNode, float> { { startNode, 0 } };
+        Dictionary<PathNode, float> costBackward = new Dictionary<PathNode, float> { { targetNode, 0 } };
 
-        // Start both searches
-        openSetForward.Enqueue(startNode);
-        openSetBackward.Enqueue(targetNode);
+        HashSet<PathNode> blockedNodes = new HashSet<PathNode>();
+        PathNode meetingNode = null;
 
-        visitedForward.Add(startNode);
-        visitedBackward.Add(targetNode);
-
-        // Main search loop
         while (openSetForward.Count > 0 && openSetBackward.Count > 0)
         {
-            // Forward search
-            if (StepSearch(openSetForward, visitedForward, visitedBackward, cameFromForward, out PathNode meetingNode))
+            // Forward step
+            if (StepSearch(openSetForward, costForward, cameFromForward, openSetBackward, blockedNodes, ref meetingNode))
             {
                 return ReconstructPath(cameFromForward, cameFromBackward, meetingNode);
             }
 
-            // Backward search
-            if (StepSearch(openSetBackward, visitedBackward, visitedForward, cameFromBackward, out meetingNode))
+            // Backward step
+            if (StepSearch(openSetBackward, costBackward, cameFromBackward, openSetForward, blockedNodes, ref meetingNode))
             {
                 return ReconstructPath(cameFromForward, cameFromBackward, meetingNode);
             }
@@ -45,31 +37,55 @@ public class BidirectionalAlgorithm : PathfindingAlgorithm
         return new List<Vector2>();
     }
 
-    private bool StepSearch(Queue<PathNode> openSet, HashSet<PathNode> visitedThis, HashSet<PathNode> visitedOther,
-                            Dictionary<PathNode, PathNode> cameFrom, out PathNode meetingNode)
+    private bool StepSearch(HashSet<PathNode> openSet, Dictionary<PathNode, float> costThis,
+                            Dictionary<PathNode, PathNode> cameFrom, HashSet<PathNode> openSetOther,
+                            HashSet<PathNode> blockedNodes, ref PathNode meetingNode)
     {
-        meetingNode = null;
-
         if (openSet.Count == 0) return false;
 
-        PathNode currentNode = openSet.Dequeue();
+        PathNode currentNode = GetNodeWithLowestCost(openSet, costThis);
+        openSet.Remove(currentNode);
 
         foreach (PathNode neighbor in currentNode.neighbors)
         {
-            if (neighbor.isBlocked || visitedThis.Contains(neighbor))
-                continue; // Skip blocked or already visited nodes
-
-            visitedThis.Add(neighbor);
-            openSet.Enqueue(neighbor);
-            cameFrom[neighbor] = currentNode;
-
-            if (visitedOther.Contains(neighbor))
+            if (neighbor.isBlocked)
             {
-                meetingNode = neighbor; // Meeting point found
-                return true;
+                blockedNodes.Add(neighbor); // Mark dynamic obstacles
+                continue;
+            }
+
+            if (blockedNodes.Contains(neighbor) || costThis.ContainsKey(neighbor))
+                continue;
+
+            costThis[neighbor] = costThis[currentNode] + Vector2.Distance(currentNode.nodePosition, neighbor.nodePosition);
+            cameFrom[neighbor] = currentNode;
+            openSet.Add(neighbor);
+
+            if (openSetOther.Contains(neighbor))
+            {
+                meetingNode = neighbor;
+                return true; // Meeting point found
             }
         }
+
         return false;
+    }
+
+    private PathNode GetNodeWithLowestCost(HashSet<PathNode> openSet, Dictionary<PathNode, float> cost)
+    {
+        PathNode lowestCostNode = null;
+        float lowestCost = Mathf.Infinity;
+
+        foreach (PathNode node in openSet)
+        {
+            if (cost[node] < lowestCost)
+            {
+                lowestCost = cost[node];
+                lowestCostNode = node;
+            }
+        }
+
+        return lowestCostNode;
     }
 
     private List<Vector2> ReconstructPath(Dictionary<PathNode, PathNode> cameFromForward,
@@ -77,7 +93,7 @@ public class BidirectionalAlgorithm : PathfindingAlgorithm
     {
         List<Vector2> path = new List<Vector2>();
 
-        // Reconstruct forward path
+        // Forward path
         PathNode current = meetingNode;
         while (cameFromForward.ContainsKey(current))
         {
@@ -86,10 +102,9 @@ public class BidirectionalAlgorithm : PathfindingAlgorithm
         }
         path.Reverse();
 
-        // Add meeting node
-        path.Add(meetingNode.nodePosition);
+        path.Add(meetingNode.nodePosition); // Add meeting node
 
-        // Reconstruct backward path
+        // Backward path
         current = meetingNode;
         while (cameFromBackward.ContainsKey(current))
         {
@@ -98,5 +113,26 @@ public class BidirectionalAlgorithm : PathfindingAlgorithm
         }
 
         return path;
+    }
+
+    public override void HandleBlockedPath(GameManager manager, PathNode blockedNode)
+    {
+        Debug.Log("Bidirectional Search: Adjusting dynamically for blocked path.");
+
+        PathNode startNode = manager.FindClosestNodeToPlayer();
+        PathNode targetNode = manager.FindClosestNodeToTarget();
+
+        if (startNode != null && targetNode != null)
+        {
+            List<Vector2> newPath = CalculatePath(startNode, targetNode, manager.allNodes);
+            if (newPath.Count > 0)
+            {
+                manager.player.SetPath(newPath);
+            }
+            else
+            {
+                Debug.Log("Bidirectional Search: No new path found after adjusting for blocked nodes.");
+            }
+        }
     }
 }

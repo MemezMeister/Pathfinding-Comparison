@@ -12,7 +12,10 @@ public class GameManager : MonoBehaviour
     {
         if (Instance == null) Instance = this;
     }
-
+    public void HandleBlockedPath(PathNode blockedNode)
+    {
+        currentAlgorithm.HandleBlockedPath(this, blockedNode);
+    }
     public void MovePlayerToNode(PathNode targetNode)
     {
         PathNode startNode = FindClosestNodeToPlayer();

@@ -61,7 +61,19 @@ public class DijkstraAlgorithm : PathfindingAlgorithm
         Debug.LogWarning("No path found using Dijkstra!");
         return new List<Vector2>();
     }
+    public override void HandleBlockedPath(GameManager manager, PathNode blockedNode)
+    {
+        Debug.Log("Dijkstra: Blocked path detected! Recalculating...");
 
+        PathNode startNode = manager.FindClosestNodeToPlayer();
+        PathNode targetNode = manager.FindClosestNodeToTarget();
+
+        if (startNode != null && targetNode != null)
+        {
+            List<Vector2> newPath = CalculatePath(startNode, targetNode, manager.allNodes);
+            manager.player.SetPath(newPath);
+        }
+    }
     private PathNode GetNodeWithLowestCost(List<PathNode> openSet, Dictionary<PathNode, float> nodeCost)
     {
         PathNode lowestCostNode = openSet[0];

@@ -22,13 +22,13 @@ public class PlayerMovement : MonoBehaviour
         }
     }
 
-    void Update()
+void Update()
+{
+    if (currentPath.Count > 0)
     {
-        if (currentPath.Count > 0)
-        {
-            CheckAndMoveAlongPath();
-        }
+        CheckAndMoveAlongPath();
     }
+}
 
     public void SetPath(List<Vector2> path)
     {
@@ -51,52 +51,27 @@ public class PlayerMovement : MonoBehaviour
     {
         if (currentTargetIndex >= currentPath.Count) return;
 
-        // Fetch the next node position
         Vector2 targetPosition = currentPath[currentTargetIndex];
         PathNode nextNode = FindClosestNode(targetPosition);
 
-        // Check if the next node is blocked
+        // Notify the algorithm if a node is blocked
         if (nextNode != null && nextNode.isBlocked)
         {
-            Debug.Log("Obstacle detected! Recalculating path...");
-            RecalculatePath();
-            return; // Stop further movement this frame
+            GameManager.Instance.currentAlgorithm.HandleBlockedPath(GameManager.Instance, nextNode);
+            return;
         }
 
         // Move towards the target position
         transform.position = Vector2.MoveTowards(transform.position, targetPosition, speed * Time.deltaTime);
-
-        // Flip the character based on movement direction
-        FlipCharacter(transform.position - (Vector3)previousPosition);
+        FlipCharacter(targetPosition - (Vector2)previousPosition);
         previousPosition = transform.position;
 
-        // Check if the player has reached the current target position
         if (Vector2.Distance(transform.position, targetPosition) < 0.1f)
         {
             currentTargetIndex++;
             if (currentTargetIndex >= currentPath.Count)
             {
                 currentPath.Clear();
-            }
-        }
-    }
-
-    void RecalculatePath()
-    {
-        PathNode startNode = GameManager.Instance.FindClosestNodeToPlayer();
-        PathNode targetNode = GameManager.Instance.FindClosestNodeToTarget();
-
-        if (startNode != null && targetNode != null)
-        {
-            List<Vector2> newPath = GameManager.Instance.currentAlgorithm.CalculatePath(startNode, targetNode, GameManager.Instance.allNodes);
-
-            if (newPath.Count > 0)
-            {
-                SetPath(newPath);
-            }
-            else
-            {
-                Debug.Log("No valid path found after recalculation!");
             }
         }
     }
@@ -132,4 +107,8 @@ public class PlayerMovement : MonoBehaviour
 
         return closestNode;
     }
+
+
+
+
 }
