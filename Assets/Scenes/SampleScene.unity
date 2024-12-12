@@ -3937,7 +3937,7 @@ MonoBehaviour:
   - {fileID: 196259364}
   - {fileID: 758391595}
   - {fileID: 1705487120}
-  currentAlgorithm: {fileID: 11400000, guid: 88dc95c2ac7c70c4da83b93d2ae081bd, type: 2}
+  currentAlgorithm: {fileID: 11400000, guid: ced1e06e0fd1bed42898ec9ceba4c1a4, type: 2}
 --- !u!114 &483219300
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -8098,7 +8098,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 6092320997071565173, guid: e31332b31e0382f458bd91cd4036b151, type: 3}
       propertyPath: speed
-      value: 1
+      value: 3
       objectReference: {fileID: 0}
     - target: {fileID: 6247019165207325947, guid: e31332b31e0382f458bd91cd4036b151, type: 3}
       propertyPath: m_LocalPosition.x

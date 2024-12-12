@@ -15,7 +15,7 @@ public class FringeSearchAlgorithm : PathfindingAlgorithm
         nowList.Enqueue(startNode);
         visitedNodes.Add(startNode);
 
-        int iterationLimit = 5000; // Prevent excessive iterations
+        int iterationLimit = 500; // Prevent excessive iterations
         int iterationCount = 0;
 
         while (nowList.Count > 0)
@@ -52,7 +52,7 @@ public class FringeSearchAlgorithm : PathfindingAlgorithm
                              Vector2.Distance(neighbor.nodePosition, targetNode.nodePosition);
 
                 if (cost <= threshold)
-                {
+                { 
                     nowList.Enqueue(neighbor);
                     cameFrom[neighbor] = currentNode;
                     visitedNodes.Add(neighbor);
