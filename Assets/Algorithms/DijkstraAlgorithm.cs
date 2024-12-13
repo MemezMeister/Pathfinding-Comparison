@@ -4,8 +4,12 @@ using UnityEngine;
 [CreateAssetMenu(menuName = "Pathfinding/Dijkstra")]
 public class DijkstraAlgorithm : PathfindingAlgorithm
 {
+    private MetricsManager metrics = new MetricsManager(); // Initialize MetricsManager
+
     public override List<Vector2> CalculatePath(PathNode startNode, PathNode targetNode, List<PathNode> allNodes)
     {
+        metrics.StartTracking(); // Start collecting metrics
+
         // Priority queue setup using a Dictionary for node costs
         Dictionary<PathNode, float> nodeCost = new Dictionary<PathNode, float>();
         Dictionary<PathNode, PathNode> cameFrom = new Dictionary<PathNode, PathNode>();
@@ -21,26 +25,27 @@ public class DijkstraAlgorithm : PathfindingAlgorithm
         nodeCost[startNode] = 0;
         List<PathNode> openSet = new List<PathNode> { startNode };
 
-        // Main loop
         while (openSet.Count > 0)
         {
-            // Find the node with the lowest cost
             PathNode currentNode = GetNodeWithLowestCost(openSet, nodeCost);
-
-            // If target node is reached, reconstruct the path
-            if (currentNode == targetNode)
-            {
-                return ReconstructPath(cameFrom, currentNode);
-            }
-
             openSet.Remove(currentNode);
             visitedNodes.Add(currentNode);
+            metrics.NodeExpanded(); // Count expanded node
+
+            // If target node is reached, stop and measure
+            if (currentNode == targetNode)
+            {
+                List<Vector2> finalPath = ReconstructPath(cameFrom, currentNode);
+                metrics.StopTracking(finalPath);
+                metrics.PrintMetrics("Dijkstra Algorithm"); // Output metrics
+                return finalPath;
+            }
 
             // Evaluate neighbors
             foreach (PathNode neighbor in currentNode.neighbors)
             {
                 if (neighbor.isBlocked || visitedNodes.Contains(neighbor))
-                    continue; // Skip blocked or visited nodes
+                    continue;
 
                 float tentativeCost = nodeCost[currentNode] + Vector2.Distance(currentNode.nodePosition, neighbor.nodePosition);
 
@@ -50,30 +55,17 @@ public class DijkstraAlgorithm : PathfindingAlgorithm
                     cameFrom[neighbor] = currentNode;
 
                     if (!openSet.Contains(neighbor))
-                    {
                         openSet.Add(neighbor);
-                    }
                 }
             }
         }
 
-        // If no path is found, return an empty list
-        Debug.LogWarning("No path found using Dijkstra!");
+        metrics.StopTracking(new List<Vector2>()); // Stop tracking for failed path
+        metrics.PrintMetrics("Dijkstra Algorithm");
+        Debug.LogWarning("Dijkstra: No path found!");
         return new List<Vector2>();
     }
-    public override void HandleBlockedPath(GameManager manager, PathNode blockedNode)
-    {
-        Debug.Log("Dijkstra: Blocked path detected! Recalculating...");
 
-        PathNode startNode = manager.FindClosestNodeToPlayer();
-        PathNode targetNode = manager.FindClosestNodeToTarget();
-
-        if (startNode != null && targetNode != null)
-        {
-            List<Vector2> newPath = CalculatePath(startNode, targetNode, manager.allNodes);
-            manager.player.SetPath(newPath);
-        }
-    }
     private PathNode GetNodeWithLowestCost(List<PathNode> openSet, Dictionary<PathNode, float> nodeCost)
     {
         PathNode lowestCostNode = openSet[0];
@@ -99,7 +91,21 @@ public class DijkstraAlgorithm : PathfindingAlgorithm
             path.Add(currentNode.nodePosition);
             currentNode = cameFrom[currentNode];
         }
-        path.Reverse(); // Reverse to get the correct order
+        path.Reverse();
         return path;
+    }
+
+    public override void HandleBlockedPath(GameManager manager, PathNode blockedNode)
+    {
+        Debug.Log("Dijkstra: Blocked path detected! Recalculating...");
+
+        PathNode startNode = manager.FindClosestNodeToPlayer();
+        PathNode targetNode = manager.FindClosestNodeToTarget();
+
+        if (startNode != null && targetNode != null)
+        {
+            List<Vector2> newPath = CalculatePath(startNode, targetNode, manager.allNodes);
+            manager.player.SetPath(newPath);
+        }
     }
 }

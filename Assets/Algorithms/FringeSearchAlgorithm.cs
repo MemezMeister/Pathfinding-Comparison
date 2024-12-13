@@ -1,11 +1,16 @@
 using System.Collections.Generic;
 using UnityEngine;
+using System.Diagnostics; // For Stopwatch
 
 [CreateAssetMenu(menuName = "Pathfinding/FringeSearch")]
 public class FringeSearchAlgorithm : PathfindingAlgorithm
 {
+    private MetricsManager metrics = new MetricsManager(); // Metrics Manager Instance
+
     public override List<Vector2> CalculatePath(PathNode startNode, PathNode targetNode, List<PathNode> allNodes)
     {
+        metrics.StartTracking(); // Start metrics tracking
+
         float threshold = Vector2.Distance(startNode.nodePosition, targetNode.nodePosition);
         HashSet<PathNode> visitedNodes = new HashSet<PathNode>();
         Queue<PathNode> nowList = new Queue<PathNode>();
@@ -21,9 +26,11 @@ public class FringeSearchAlgorithm : PathfindingAlgorithm
         while (nowList.Count > 0)
         {
             iterationCount++;
+            metrics.NodeExpanded(); // Increment nodes expanded
+
             if (iterationCount > iterationLimit)
             {
-                Debug.LogWarning("Fringe Search: Iteration limit reached. Terminating.");
+                UnityEngine.Debug.LogWarning("Fringe Search: Iteration limit reached. Terminating.");
                 break;
             }
 
@@ -32,7 +39,10 @@ public class FringeSearchAlgorithm : PathfindingAlgorithm
             // Target Reached
             if (currentNode == targetNode)
             {
-                return ReconstructPath(cameFrom, targetNode);
+                List<Vector2> path = ReconstructPath(cameFrom, targetNode);
+                metrics.StopTracking(path); // Stop metrics and calculate
+                metrics.PrintMetrics("Fringe Search");
+                return path;
             }
 
             // Process neighbors
@@ -52,7 +62,7 @@ public class FringeSearchAlgorithm : PathfindingAlgorithm
                              Vector2.Distance(neighbor.nodePosition, targetNode.nodePosition);
 
                 if (cost <= threshold)
-                { 
+                {
                     nowList.Enqueue(neighbor);
                     cameFrom[neighbor] = currentNode;
                     visitedNodes.Add(neighbor);
@@ -66,20 +76,21 @@ public class FringeSearchAlgorithm : PathfindingAlgorithm
             // Adjust threshold dynamically if Now List is empty
             if (nowList.Count == 0 && laterList.Count > 0)
             {
-                Debug.Log("Fringe Search: Adjusting threshold due to blocked paths.");
+                UnityEngine.Debug.Log("Fringe Search: Adjusting threshold due to blocked paths.");
                 threshold = AdjustThreshold(threshold, laterList, targetNode);
                 nowList = MoveNodesToNowList(laterList);
                 laterList.Clear();
             }
         }
 
-        Debug.LogWarning("Fringe Search: No path found.");
+        UnityEngine.Debug.LogWarning("Fringe Search: No path found.");
+        metrics.StopTracking(null); // Stop metrics (no path)
+        metrics.PrintMetrics("Fringe Search");
         return new List<Vector2>();
     }
 
     private float AdjustThreshold(float currentThreshold, List<PathNode> laterList, PathNode targetNode)
     {
-        // Dynamically adjust threshold based on proximity to target
         float minCost = float.MaxValue;
 
         foreach (PathNode node in laterList)
@@ -93,31 +104,14 @@ public class FringeSearchAlgorithm : PathfindingAlgorithm
 
     public override void HandleBlockedPath(GameManager manager, PathNode blockedNode)
     {
-        Debug.Log("Fringe Search: Dynamic obstacle encountered. Adjusting path...");
+        UnityEngine.Debug.Log("Fringe Search: Dynamic obstacle encountered. Adjusting path...");
+        if (blockedNode != null) blockedNode.isBlocked = true;
 
-        // Reset the blocked node to allow reevaluation
-        if (blockedNode != null)
-        {
-            blockedNode.isBlocked = true; // Ensure the node is flagged as blocked
-        }
-
-        // Partial recalculation
         PathNode startNode = manager.FindClosestNodeToPlayer();
         PathNode targetNode = manager.FindClosestNodeToTarget();
 
         if (startNode != null && targetNode != null)
         {
-            // Remove blocked nodes from visited set to allow reconsideration
-            HashSet<PathNode> resetVisitedNodes = new HashSet<PathNode>();
-            foreach (PathNode node in manager.allNodes)
-            {
-                if (!node.isBlocked)
-                {
-                    resetVisitedNodes.Add(node);
-                }
-            }
-
-            // Retry the pathfinding process
             List<Vector2> newPath = CalculatePath(startNode, targetNode, manager.allNodes);
             if (newPath.Count > 0)
             {
@@ -125,23 +119,21 @@ public class FringeSearchAlgorithm : PathfindingAlgorithm
             }
             else
             {
-                Debug.LogWarning("Fringe Search: No valid path found during partial recalculation.");
+                UnityEngine.Debug.LogWarning("Fringe Search: No valid path found during partial recalculation.");
             }
         }
     }
-
 
     private List<Vector2> ReconstructPath(Dictionary<PathNode, PathNode> cameFrom, PathNode currentNode)
     {
         List<Vector2> path = new List<Vector2>();
         HashSet<PathNode> visitedInPath = new HashSet<PathNode>();
 
-        // Prevent circular path reconstruction
         while (cameFrom.ContainsKey(currentNode))
         {
             if (visitedInPath.Contains(currentNode))
             {
-                Debug.LogWarning("Fringe Search: Circular path detected during reconstruction.");
+                UnityEngine.Debug.LogWarning("Fringe Search: Circular path detected during reconstruction.");
                 break;
             }
 
@@ -153,17 +145,17 @@ public class FringeSearchAlgorithm : PathfindingAlgorithm
         path.Reverse();
         return path;
     }
+
     private Queue<PathNode> MoveNodesToNowList(List<PathNode> laterList)
     {
         Queue<PathNode> nowList = new Queue<PathNode>();
         foreach (PathNode node in laterList)
         {
-            if (!node.isBlocked) // Only add unblocked nodes back to the Now List
+            if (!node.isBlocked)
             {
                 nowList.Enqueue(node);
             }
         }
         return nowList;
     }
-
 }
