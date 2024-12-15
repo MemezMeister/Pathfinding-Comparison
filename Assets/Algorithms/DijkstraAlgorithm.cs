@@ -5,10 +5,15 @@ using UnityEngine;
 public class DijkstraAlgorithm : PathfindingAlgorithm
 {
     private MetricsManager metrics = new MetricsManager(); // Initialize MetricsManager
+    private PathNode originalTargetNode; // Store the original target node
 
     public override List<Vector2> CalculatePath(PathNode startNode, PathNode targetNode, List<PathNode> allNodes)
     {
         metrics.StartTracking(); // Start collecting metrics
+
+        // Set original target node
+        if (originalTargetNode == null)
+            originalTargetNode = targetNode;
 
         // Priority queue setup using a Dictionary for node costs
         Dictionary<PathNode, float> nodeCost = new Dictionary<PathNode, float>();
@@ -32,8 +37,8 @@ public class DijkstraAlgorithm : PathfindingAlgorithm
             visitedNodes.Add(currentNode);
             metrics.NodeExpanded(); // Count expanded node
 
-            // If target node is reached, stop and measure
-            if (currentNode == targetNode)
+            // If original target node is reached, stop and measure
+            if (currentNode == originalTargetNode)
             {
                 List<Vector2> finalPath = ReconstructPath(cameFrom, currentNode);
                 metrics.StopTracking(finalPath);
@@ -99,13 +104,26 @@ public class DijkstraAlgorithm : PathfindingAlgorithm
     {
         Debug.Log("Dijkstra: Blocked path detected! Recalculating...");
 
-        PathNode startNode = manager.FindClosestNodeToPlayer();
-        PathNode targetNode = manager.FindClosestNodeToTarget();
+        // Mark the blocked node
+        if (blockedNode != null)
+            blockedNode.isBlocked = true;
 
-        if (startNode != null && targetNode != null)
+        PathNode startNode = manager.FindClosestNodeToPlayer();
+
+        if (startNode != null && originalTargetNode != null)
         {
-            List<Vector2> newPath = CalculatePath(startNode, targetNode, manager.allNodes);
-            manager.player.SetPath(newPath);
+            Debug.Log($"Recalculating path from {startNode.nodePosition} to original goal {originalTargetNode.nodePosition}");
+            List<Vector2> newPath = CalculatePath(startNode, originalTargetNode, manager.allNodes);
+
+            if (newPath.Count > 0)
+            {
+                Debug.Log("Dijkstra: Path recalculated successfully.");
+                manager.player.SetPath(newPath);
+            }
+            else
+            {
+                Debug.LogWarning("Dijkstra: No valid path found after recalculation.");
+            }
         }
     }
 }

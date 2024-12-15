@@ -4041,7 +4041,7 @@ MonoBehaviour:
   - {fileID: 758391595}
   - {fileID: 1705487120}
   obstaclePrefab: {fileID: 6148306138117639598, guid: b803cddc8e965f94bbd1579b6b1e6eaf, type: 3}
-  spawnInterval: 5
+  spawnInterval: 2
   obstacleLifespan: 30
 --- !u!4 &483219301
 Transform:

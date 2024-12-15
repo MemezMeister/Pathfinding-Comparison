@@ -5,31 +5,28 @@ using System.Linq;
 
 public class MetricsManager
 {
-    private Stopwatch stopwatch; // To measure execution time
+    float startTime;// To measure execution time
     private int nodesExpanded;   // Count of nodes expanded
     private float pathLength;    // Length of the final path
     private long startMemory;    // Memory usage before pathfinding
     private long endMemory;      // Memory usage after pathfinding
-
-    public MetricsManager()
-    {
-        stopwatch = new Stopwatch();
-        ResetMetrics();
-    }
+    public float executionTime;
 
     public void StartTracking()
     {
-        ResetMetrics();
+        ResetMetrics();  
         nodesExpanded = 0;
+        System.GC.Collect();
+        System.GC.WaitForPendingFinalizers();
         startMemory = System.GC.GetTotalMemory(true);
-        stopwatch.Start();
+        startTime = Time.realtimeSinceStartup;
     }
 
     public void StopTracking(List<Vector2> path)
     {
-        stopwatch.Stop();
+        float endTime = Time.realtimeSinceStartup;    // End the timer
         endMemory = System.GC.GetTotalMemory(true);
-
+        executionTime = (endTime - startTime) * 1000f;
         // Measure path length
         if (path != null && path.Count > 1)
         {
@@ -39,6 +36,7 @@ public class MetricsManager
         {
             pathLength = 0;
         }
+
     }
 
     public void NodeExpanded()
@@ -48,8 +46,9 @@ public class MetricsManager
 
     public void PrintMetrics(string algorithmName)
     {
+
         UnityEngine.Debug.Log($"--- Metrics for {algorithmName} ---");
-        UnityEngine.Debug.Log($"Execution Time: {stopwatch.ElapsedMilliseconds} ms");
+        UnityEngine.Debug.Log($"Execution Time: {executionTime} ms");
         UnityEngine.Debug.Log($"Nodes Expanded: {nodesExpanded}");
         UnityEngine.Debug.Log($"Path Length: {pathLength:F2}");
         UnityEngine.Debug.Log($"Memory Usage: {GetMemoryUsage()} bytes");
@@ -57,7 +56,7 @@ public class MetricsManager
 
     private void ResetMetrics()
     {
-        stopwatch.Reset();
+        startTime = 0f;
         nodesExpanded = 0;
         pathLength = 0;
         startMemory = 0;
